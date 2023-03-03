@@ -17,14 +17,62 @@
 
 После запуска `Vagrantfile` создаются две ВМ: `backup` и `client` с уже настроенным автоматическим бэкапом (для наглядности бэкап каждую минуту).
 
-Заходим на `client` и проверяем, работатет ли бэкап:
+Заходим на `client` и проверяем, работатет ли таймер:
 ```bash
+[root@client ~]# systemctl list-timers 
+NEXT                         LEFT       LAST                         PASSED  UNIT                         ACTIVATES
+Fri 2023-03-03 16:32:07 MSK  21s left   Fri 2023-03-03 16:31:07 MSK  38s ago borg-backup.timer            borg-backup.service
+...
+
+2 timers listed.
 ```
 
 Логирование настроено через `rsyslog`, логи сохраняются в `/var/log/borg.log`:
 ```bash
+[root@client ~]# tail -f /var/log/borg.log 
+Mar  3 16:33:12 client borg: Duration: 1.08 seconds
+Mar  3 16:33:12 client borg: Number of files: 1701
+Mar  3 16:33:12 client borg: Utilization of max. archive size: 0%
+Mar  3 16:33:12 client borg: ------------------------------------------------------------------------------
+Mar  3 16:33:12 client borg: Original size      Compressed size    Deduplicated size
+Mar  3 16:33:12 client borg: This archive:               28.43 MB             13.50 MB             38.23 kB
+Mar  3 16:33:12 client borg: All archives:               56.85 MB             26.99 MB             11.88 MB
+Mar  3 16:33:12 client borg: Unique chunks         Total chunks
+Mar  3 16:33:12 client borg: Chunk index:                    1286                 3400
+Mar  3 16:33:12 client borg: ------------------------------------------------------------------------------
+Mar  3 16:35:02 client borg: ------------------------------------------------------------------------------
+Mar  3 16:35:02 client borg: Archive name: etc-2023-03-03_16:34
+Mar  3 16:35:02 client borg: Archive fingerprint: 68ded700fad396b969454c2befe36453f1284c65410a5dc3b08efa1559dcf89e
+Mar  3 16:35:02 client borg: Time (start): Fri, 2023-03-03 16:34:59
+Mar  3 16:35:02 client borg: Time (end):   Fri, 2023-03-03 16:35:00
+Mar  3 16:35:02 client borg: Duration: 0.61 seconds
+Mar  3 16:35:02 client borg: Number of files: 1701
+Mar  3 16:35:02 client borg: Utilization of max. archive size: 0%
+Mar  3 16:35:02 client borg: ------------------------------------------------------------------------------
+Mar  3 16:35:02 client borg: Original size      Compressed size    Deduplicated size
+Mar  3 16:35:02 client borg: This archive:               28.43 MB             13.50 MB                681 B
+Mar  3 16:35:02 client borg: All archives:               56.85 MB             26.99 MB             11.84 MB
+Mar  3 16:35:02 client borg: Unique chunks         Total chunks
+Mar  3 16:35:02 client borg: Chunk index:                    1285                 3400
+Mar  3 16:35:02 client borg: ------------------------------------------------------------------------------
 ```
 
 Остановим бэкап, удалим директорию `/etc` и восстановим ее из бэкапа:
 ```bash
+[root@client ~]# borg extract borg@192.168.56.10:/var/borg/backup/::etc-2023-03-03_16:37 etc/
+Enter passphrase for key ssh://borg@192.168.56.10/var/borg/backup: 
+[root@client ~]# ls
+anaconda-ks.cfg  etc  original-ks.cfg
+[root@client ~]# ls -l etc/ | wc -l
+181
+[root@client ~]# ls -l /etc | wc -l
+181
+[root@client ~]# rm -rf /etc
+rm: cannot remove '/etc': Device or resource busy
+[root@client ~]# ls -l /etc | wc -l
+1
+[root@client ~]# cp -Rf etc/* /etc/
+[root@client ~]# ls -l /etc | wc -l
+181
+[root@client ~]# 
 ```
