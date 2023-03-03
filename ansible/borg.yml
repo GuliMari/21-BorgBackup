@@ -1,0 +1,43 @@
+---
+
+- hosts: all
+  gather_facts: false
+  become: true
+  pre_tasks:
+    - name: Set timezone to Europe/Moscow
+      timezone:
+        name: Europe/Moscow
+    
+    - name: Restart chronyd
+      service:
+        name: chronyd
+        state: restarted
+    
+    - name: Install epel repo
+      ansible.builtin.yum:
+        name:
+          - epel-release
+        state: present
+
+    - name: Install borgbackup
+      ansible.builtin.yum:
+        name:
+          - borgbackup
+        state: present
+
+- hosts: backup
+  gather_facts: true
+  become: true
+  roles:
+    - backup
+
+- hosts: client
+  gather_facts: false
+  become: true
+  vars:
+    backup_ip: 192.168.56.10
+    backup_user: borg
+  roles:
+    - client
+
+...
